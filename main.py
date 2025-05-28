@@ -30,6 +30,7 @@ async def analyze_video(
         "suggestion": "ควรเพิ่มเนื้อหาในหัวข้อ X อีกหน่อย"
     }
 
+    print("กำลังจะ insert ลง MongoDB")
     # เก็บข้อมูลลง MongoDB
     try:
         collection.insert_one({
@@ -39,6 +40,7 @@ async def analyze_video(
             "suggestion": result["suggestion"],
             "created_at": datetime.now(tz=timezone.utc)
         })
+        print("Insert สำเร็จ")
     except Exception as e:
         print("MongoDB insert error:", e)
 
