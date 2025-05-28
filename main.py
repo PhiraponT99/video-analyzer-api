@@ -1,7 +1,14 @@
 from fastapi import FastAPI, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
+from pymongo import MongoClient
+from datetime import datetime, timezone
 
 app = FastAPI()
+
+# MongoDB connection (เปลี่ยน <db_password> เป็นรหัสผ่านจริงของคุณ)
+client = MongoClient("mongodb+srv://phirapont:2kFL3F8A4XrVGrRA@cluster0.dqfmomu.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
+db = client["video_analyzer"]
+collection = db["analyze_results"]
 
 # อนุญาตให้ frontend (React) เชื่อมต่อ (ถ้าเป็น dev ใช้ allow_all ไปก่อน)
 app.add_middleware(
@@ -17,8 +24,26 @@ async def analyze_video(
     video: UploadFile = File(...),
     expected_topic: str = Form(...)
 ):
-    # Demo: ตอบกลับ mock ก่อน
-    return {
+    # ตัวอย่างข้อมูล mock
+    result = {
         "score": 80,
         "suggestion": "ควรเพิ่มเนื้อหาในหัวข้อ X อีกหน่อย"
     }
+
+    # เก็บข้อมูลลง MongoDB
+    collection.insert_one({
+        "filename": video.filename,
+        "expected_topic": expected_topic,
+        "score": result["score"],
+        "suggestion": result["suggestion"],
+        "created_at": datetime.now(tz=timezone.utc)
+    })
+
+    return result
+
+if __name__ == "__main__":
+    try:
+        print("Databases:", client.list_database_names())
+        print("เชื่อมต่อ MongoDB สำเร็จ")
+    except Exception as e:
+        print("เชื่อมต่อ MongoDB ไม่สำเร็จ:", e)
