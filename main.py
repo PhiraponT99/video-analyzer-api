@@ -31,13 +31,16 @@ async def analyze_video(
     }
 
     # เก็บข้อมูลลง MongoDB
-    collection.insert_one({
-        "filename": video.filename,
-        "expected_topic": expected_topic,
-        "score": result["score"],
-        "suggestion": result["suggestion"],
-        "created_at": datetime.now(tz=timezone.utc)
-    })
+    try:
+        collection.insert_one({
+            "filename": video.filename,
+            "expected_topic": expected_topic,
+            "score": result["score"],
+            "suggestion": result["suggestion"],
+            "created_at": datetime.now(tz=timezone.utc)
+        })
+    except Exception as e:
+        print("MongoDB insert error:", e)
 
     return result
 
