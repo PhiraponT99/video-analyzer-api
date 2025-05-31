@@ -31,7 +31,6 @@ async def analyze_video(
     }
 
     print("กำลังจะ insert ลง MongoDB")
-    # เก็บข้อมูลลง MongoDB
     try:
         collection.insert_one({
             "filename": video.filename,
@@ -44,7 +43,11 @@ async def analyze_video(
     except Exception as e:
         print("MongoDB insert error:", e)
 
-    return result
+    # ตอบกลับว่ารับไฟล์แล้ว
+    return {
+        "message": f"ได้รับไฟล์ {video.filename} แล้ว",
+        "result": result
+    }
 
 if __name__ == "__main__":
     try:
