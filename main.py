@@ -2,6 +2,10 @@ from fastapi import FastAPI, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
 from pymongo import MongoClient
 from datetime import datetime, timezone
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaIoBaseUpload
+from google.oauth2 import service_account
+import io
 
 app = FastAPI()
 
@@ -19,12 +23,52 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+def upload_to_google_drive(file: UploadFile):
+    # ใช้ Service Account (เตรียมไฟล์ service_account.json ไว้)
+    SCOPES = ['https://www.googleapis.com/auth/drive']
+    SERVICE_ACCOUNT_FILE = 'service_account.json'
+    FOLDER_ID = '13o10S0P_ofqzHrl8WjRqvttbD4NbxXW-'  # ใส่ folder id ของคุณ
+
+    credentials = service_account.Credentials.from_service_account_file(
+        SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+    service = build('drive', 'v3', credentials=credentials)
+
+    # อ่านไฟล์จาก UploadFile เป็น binary
+    file_stream = io.BytesIO(file.file.read())
+
+    file_metadata = {
+        'name': file.filename,
+        'parents': [FOLDER_ID]
+    }
+    media = MediaIoBaseUpload(file_stream, mimetype=file.content_type)
+
+    uploaded_file = service.files().create(
+        body=file_metadata,
+        media_body=media,
+        fields='id'
+    ).execute()
+
+    file_id = uploaded_file.get('id')
+    # สร้าง share link
+    share_link = f"https://drive.google.com/file/d/{file_id}/view?usp=sharing"
+    drive_path = f"/content/drive/MyDrive/ai-video-analyzer/videos/{file.filename}"
+
+    # ตั้งค่าให้ anyone with the link view ได้
+    service.permissions().create(
+        fileId=file_id,
+        body={'type': 'anyone', 'role': 'reader'}
+    ).execute()
+
+    return drive_path, share_link
+
 @app.post("/analyze")
 async def analyze_video(
     video: UploadFile = File(...),
     expected_topic: str = Form(...)
 ):
-    # ตัวอย่างผลลัพธ์ mock (ควรแทนที่ด้วย logic จริงในอนาคต)
+    # อัปโหลดไฟล์และรับ path + share link
+    drive_path, share_link = upload_to_google_drive(video)
+
     result = {
         "score": 0.8,
         "suggestion": "พูดตรงประเด็นดีแล้ว"
@@ -35,6 +79,8 @@ async def analyze_video(
         collection.insert_one({
             "filename": video.filename,
             "expected_topic": expected_topic,
+            "drive_path": drive_path,
+            "share_link": share_link,  # <<--- เพิ่มตรงนี้
             "score": result["score"],
             "suggestion": result["suggestion"],
             "created_at": datetime.now(tz=timezone.utc)
@@ -43,9 +89,10 @@ async def analyze_video(
     except Exception as e:
         print("MongoDB insert error:", e)
 
-    # ตอบกลับว่ารับไฟล์แล้ว
     return {
         "message": f"ได้รับไฟล์ {video.filename} แล้ว",
+        "drive_path": drive_path,
+        "share_link": share_link,  # <<--- ส่งกลับไปด้วย
         "result": result
     }
 
