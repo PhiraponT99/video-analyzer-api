@@ -24,10 +24,10 @@ async def analyze_video(
     video: UploadFile = File(...),
     expected_topic: str = Form(...)
 ):
-    # ตัวอย่างข้อมูล mock
+    # ตัวอย่างผลลัพธ์ mock (ควรแทนที่ด้วย logic จริงในอนาคต)
     result = {
-        "score": 80,
-        "suggestion": "ควรเพิ่มเนื้อหาในหัวข้อ X อีกหน่อย"
+        "score": 0.8,
+        "suggestion": "พูดตรงประเด็นดีแล้ว"
     }
 
     print("กำลังจะ insert ลง MongoDB")
