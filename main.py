@@ -6,6 +6,8 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
 from google.oauth2 import service_account
 import io
+import os
+import json
 
 app = FastAPI()
 
@@ -24,13 +26,14 @@ app.add_middleware(
 )
 
 def upload_to_google_drive(file: UploadFile):
-    # ใช้ Service Account (เตรียมไฟล์ service_account.json ไว้)
+    # ใช้ Service Account จาก Environment Variable
     SCOPES = ['https://www.googleapis.com/auth/drive']
-    SERVICE_ACCOUNT_FILE = 'service_account.json'
     FOLDER_ID = '13o10S0P_ofqzHrl8WjRqvttbD4NbxXW-'  # ใส่ folder id ของคุณ
 
-    credentials = service_account.Credentials.from_service_account_file(
-        SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+    # โหลด credentials จาก env
+    service_account_info = json.loads(os.environ["GOOGLE_APPLICATION_CREDENTIALS_JSON"])
+    credentials = service_account.Credentials.from_service_account_info(
+        service_account_info, scopes=SCOPES)
     service = build('drive', 'v3', credentials=credentials)
 
     # อ่านไฟล์จาก UploadFile เป็น binary
@@ -80,7 +83,7 @@ async def analyze_video(
             "filename": video.filename,
             "expected_topic": expected_topic,
             "drive_path": drive_path,
-            "share_link": share_link,  # <<--- เพิ่มตรงนี้
+            "share_link": share_link,
             "score": result["score"],
             "suggestion": result["suggestion"],
             "created_at": datetime.now(tz=timezone.utc)
@@ -92,7 +95,7 @@ async def analyze_video(
     return {
         "message": f"ได้รับไฟล์ {video.filename} แล้ว",
         "drive_path": drive_path,
-        "share_link": share_link,  # <<--- ส่งกลับไปด้วย
+        "share_link": share_link,
         "result": result
     }
 
